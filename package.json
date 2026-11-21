@@ -1,0 +1,16 @@
+{
+  "name": "app-costos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PWA para registrar tickets de supermercado, validarlos con códigos de barra y proyectar gastos.",
+  "scripts": {
+    "vendor": "node scripts/build-vendor.mjs",
+    "serve": "npx --yes http-server -p 8080 -c-1 ."
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "1.7.0",
+    "barcode-detector": "3.2.3",
+    "chart.js": "4.4.1",
+    "esbuild": "0.25.0"
+  }
+}
