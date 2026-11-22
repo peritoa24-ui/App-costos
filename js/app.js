@@ -11,7 +11,7 @@ function getOcrMode() {
 function setOcrMode(m) { try { localStorage.setItem("ocr_mode", m); } catch {} }
 import { startScanner, isValidEan } from "./scanner.js";
 import {
-  CATEGORIES, getOrCreateProduct, rankItems, addPrice, addAlias, latestPrice, normalize,
+  CATEGORIES, getOrCreateProduct, lookupBarcode, guessCategory, rankItems, addPrice, addAlias, latestPrice, normalize, UNNAMED,
 } from "./products.js";
 import {
   spendByMonth, spendByCategory, topProducts, priceChanges, projectSpend,
@@ -292,7 +292,13 @@ function newDraft(data = {}) {
 function autoMatchDraft(draft) {
   const products = Object.values(state.products);
   for (const item of draft.items) {
-    if (item.ean) { item.auto = true; continue; }
+    if (item.ean) {
+      item.auto = true;
+      const known = state.products[item.ean];
+      if (item.description === UNNAMED && known?.name) item.description = known.name;
+      continue;
+    }
+    if (item.description === UNNAMED) continue;
     const n = normalize(item.description);
     const p = products.find((p) => (p.aliases || []).some((a) => normalize(a) === n));
     if (p) { item.ean = p.ean; item.auto = true; }
@@ -549,7 +555,8 @@ async function onScanTicket(code) {
 
 function assign(item, prod) {
   item.ean = prod.ean;
-  if (!prod.name) prod.name = item.description;
+  if (item.description === UNNAMED && prod.name) item.description = prod.name;
+  if (!prod.name && item.description !== UNNAMED) prod.name = item.description;
   state.draft._names = { ...(state.draft._names || {}), [prod.ean]: prod.name };
 }
 
@@ -609,19 +616,35 @@ async function saveDraft() {
     items: d.items.map(({ id, description, quantity, unitPrice, lineTotal, ean }) => ({ id, description, quantity, unitPrice, lineTotal, ean: ean || null })),
     createdAt: d.createdAt || new Date().toISOString(),
   };
-  await db.put("tickets", ticket);
+  // Productos nuevos (con código pero que no están en el catálogo): buscamos nombre y categoría por el código
+  const newEans = [...new Set(ticket.items.filter((i) => i.ean && !state.products[i.ean] && !d._products?.[i.ean]).map((i) => i.ean))];
+  const looked = Object.fromEntries(await Promise.all(newEans.map(async (e) => [e, await lookupBarcode(e)])));
 
   // Actualiza catálogo y precios
   const touched = new Map();
   for (const item of ticket.items) {
     if (!item.ean) continue;
-    const prod = touched.get(item.ean) || state.products[item.ean] || d._products?.[item.ean] || { ean: item.ean, name: item.description, brand: "", category: "Otros", aliases: [], prices: [] };
+    let prod = touched.get(item.ean) || state.products[item.ean] || d._products?.[item.ean];
+    if (!prod) {
+      const info = looked[item.ean];
+      const fromTicket = item.description !== UNNAMED ? item.description : "";
+      prod = {
+        ean: item.ean,
+        name: info?.name || fromTicket || UNNAMED,
+        brand: info?.brand || "",
+        category: info?.name ? info.category : guessCategory(fromTicket),
+        aliases: [],
+        prices: [],
+      };
+    }
     if (d._products?.[item.ean]) Object.assign(prod, { name: d._products[item.ean].name || prod.name, category: d._products[item.ean].category, aliases: d._products[item.ean].aliases });
     if (!prod.name) prod.name = item.description;
+    if (item.description === UNNAMED) item.description = prod.name;
     addAlias(prod, item.description);
     addPrice(prod, { date: ticket.date, price: Math.round(item.unitPrice * 100) / 100, store: ticket.store, ticketId: ticket.id });
     touched.set(item.ean, prod);
   }
+  await db.put("tickets", ticket);
   for (const p of touched.values()) await db.put("products", p);
 
   state.draft = null;
@@ -775,7 +798,7 @@ function renderAjustes() {
       <input type="file" id="import" accept="application/json" class="hidden" />
       <button class="btn-block btn-danger" id="wipe">Borrar todos los datos</button>
     </div>
-    <p class="small muted" style="text-align:center">Mis Costos v0.3 · Los nombres de productos vienen de Open Food Facts</p>`;
+    <p class="small muted" style="text-align:center">Mis Costos v0.4 · Los nombres de productos vienen de Open Food Facts</p>`;
 
   $("#save-key").onclick = () => {
     setApiKey($("#key").value);

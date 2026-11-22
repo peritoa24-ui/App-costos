@@ -7,17 +7,17 @@ export const CATEGORIES = [
 ];
 
 const CATEGORY_RULES = [
-  ["Lácteos", /dairies|dairy|milk|leche|yogur|queso|cheese|manteca|butter|dulce-de-leche|crema/],
-  ["Bebidas", /beverage|bebida|drink|water|agua|soda|gaseosa|juice|jugo|wine|vino|beer|cerveza|cafe|coffee|tea|yerba|mate/],
-  ["Carnes", /meat|carne|pollo|chicken|fish|pescado|jamon|ham|sausage|embutido|fiambre/],
+  ["Lácteos", /dairies|dairy|milk|leche|\blch\b|yogur|yog\b|queso|cheese|manteca|butter|dulce-de-leche|crema|postre|flan/],
+  ["Bebidas", /beverage|bebida|drink|water|agua|soda|gaseosa|juice|jugo|wine|vino|beer|cerv|fernet|aperitivo|cafe|coffee|\bte\b|tea|yerba|mate|coca|sprite|fanta|pepsi|isot/],
+  ["Carnes", /meat|carne|pollo|chicken|fish|pescado|jamon|ham|sausage|embutido|fiambre|salchich|hamburg|milanesa|asado|picada|nalga|cuadril|vacio/],
   ["Frutas y verduras", /fruit|fruta|vegetable|verdura|hortaliza|legumbre-fresca/],
-  ["Panadería", /bread|pan|galletita|biscuit|cookie|bakery/],
+  ["Panadería", /bread|\bpan\b|pan-|galletit|biscuit|cookie|bakery|bizcoch|tostada|budin|medialuna/],
   ["Congelados", /frozen|congelado|helado|ice-cream/],
-  ["Limpieza", /cleaning|limpieza|detergent|lavandina|bleach|jabon-en-polvo|suavizante|household/],
-  ["Perfumería e higiene", /hygiene|shampoo|soap|jabon|toothpaste|dental|deodorant|desodorante|cosmetic|papel-higienico|toilet/],
+  ["Limpieza", /cleaning|limpieza|detergent|deterg|lavandina|bleach|jabon-en-polvo|jabon polvo|suavizante|household|limpiador|desinfect|esponja|trapo|insecticida/],
+  ["Perfumería e higiene", /hygiene|shampoo|sham\b|acondic|soap|jabon|toothpaste|dental|pasta-dent|cepillo|deodorant|desod|\bdeo\b|talco|cosmetic|papel-higienico|papel hig|toilet|afeit|toalla|algodon|crema-corporal/],
   ["Mascotas", /pet|dog|cat|mascota|perro|gato/],
   ["Bebé", /baby|bebe|pañal|diaper/],
-  ["Almacén", /groceries|pasta|fideo|rice|arroz|oil|aceite|flour|harina|sugar|azucar|cereal|snack|conserva|salsa|sauce|condiment|legume/],
+  ["Almacén", /groceries|pasta|fideo|rice|arroz|oil|aceite|flour|harina|sugar|azucar|cereal|avena|snack|conserva|salsa|sauce|condiment|legume|lenteja|poroto|atun|tomate|mayonesa|ketchup|mostaza|sal\b|galleta|mermelada|dulce|chocolate|cacao|polenta|pure/],
 ];
 
 export function guessCategory(text) {
@@ -129,9 +129,11 @@ export function addPrice(product, entry) {
   product.prices.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export const UNNAMED = "Producto sin nombre";
+
 export function addAlias(product, description) {
   const n = normalize(description);
-  if (!n) return;
+  if (!n || description === UNNAMED) return;
   product.aliases = product.aliases || [];
   if (!product.aliases.map(normalize).includes(n)) product.aliases.push(description);
 }

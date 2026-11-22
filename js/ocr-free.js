@@ -218,7 +218,7 @@ function lastMoney(line) {
 function cleanDescription(s) {
   return s
     .replace(/\s+\S{0,2}\d+[.,]\d{0,2}\b.*$/, "") // importe mal leído al final ("395,0 Sig")
-    .replace(/^(?:(?=\S*[a-z”“"'.,;:¡!])\S{1,2}\s+)+/, "") // basura corta al principio ("y” ")
+    .replace(/^(?:(?=\S*[\p{Ll}”“"'.,;:¡!ªº])\S{1,2}\s+)+/u, "") // basura corta al principio ("y” ", "a ")
     .replace(/^[A-Z]\s+(?=[A-ZÁÉÍÓÚÑ]{3,})/, "") // letra suelta al principio
     .replace(/^\s*\d{8,14}\s+/, "") // código al principio
     .replace(/^\s*\d{1,6}\s+(?=[A-Za-zÁÉÍÓÚÑáéíóúñ])/, "") // código interno corto
@@ -278,12 +278,24 @@ export function parseTicketText(text) {
   }
 
   let pendingQty = null; // "2 x 1.500,00": aplica al próximo producto
+  // Si se leyó el precio de un producto pero no su nombre, se agrega igual para no perderlo.
+  const flushPending = (ean = null) => {
+    if (!pendingQty) return;
+    const total = pendingQty.lineTotal ?? pendingQty.unit * pendingQty.quantity;
+    if (total > 0) {
+      const item = makeItem(UNNAMED, pendingQty.quantity, total);
+      if (ean) item.ean = ean;
+      result.items.push(item);
+    }
+    pendingQty = null;
+  };
   let pendingUnit = null; // solo "2430,00" (se perdió el "2,00 X"): sirve para deducir la cantidad
   for (const { line, hasIva } of entries) {
     if (TOTAL.test(line) && !/sub\s*total/i.test(line)) {
       const m = lastMoney(line);
       if (m) {
         result.total = Math.abs(m.value);
+        flushPending();
         break; // lo que sigue al total son pagos, impuestos, etc.
       }
       continue;
@@ -292,8 +304,13 @@ export function parseTicketText(text) {
     // código de barras solo en una línea (Día lo imprime debajo de cada producto)
     const onlyCode = line.match(/^\D{0,3}(\d{8}|\d{12,13})\D{0,3}$/);
     if (onlyCode) {
-      const last = result.items.at(-1);
-      if (last && !last.ean && isValidEan(onlyCode[1])) last.ean = onlyCode[1];
+      const code = isValidEan(onlyCode[1]) ? onlyCode[1] : null;
+      if (pendingQty) {
+        flushPending(code); // precio + código, pero el nombre no se pudo leer
+      } else {
+        const last = result.items.at(-1);
+        if (last && !last.ean && code) last.ean = code;
+      }
       continue;
     }
 
@@ -308,6 +325,7 @@ export function parseTicketText(text) {
         // todo en una línea: "2 x 1.500,00 LECHE ENTERA 3.000,00"
         result.items.push(makeItem(restDesc, quantity, restMoney ? Math.abs(restMoney.value) : unit * quantity));
       } else {
+        flushPending(); // el producto anterior quedó sin nombre
         pendingQty = { quantity, unit, lineTotal: restMoney ? Math.abs(restMoney.value) : null };
         // si la descripción vino ANTES (algunos tickets), aplicarlo al último ítem sin cantidad
         const last = result.items.at(-1);
@@ -370,11 +388,14 @@ export function parseTicketText(text) {
     result.items.push(item);
   }
 
+  flushPending();
   result.items = result.items
     .filter((i) => (i.lineTotal > 0 || i.missingPrice) && i.lineTotal < 10_000_000)
     .map(({ _needsQty, ...i }) => i);
   return result;
 }
+
+const UNNAMED = "Producto sin nombre";
 
 // Un importe leído "raro" (ej: 395,00 en vez de 3965,00) se descarta si está muy lejos de cantidad x precio
 function isPlausible(read, expected) {
