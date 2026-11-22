@@ -1,5 +1,7 @@
 # Mis Costos
 
+**Abrir la app:** https://peritoa24-ui.github.io/App-costos/
+
 App para el celular (PWA) que registra tus compras de supermercado, las valida con los códigos de barra y proyecta cuánto vas a gastar.
 
 ## Qué hace
