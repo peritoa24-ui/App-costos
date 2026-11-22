@@ -1,5 +1,5 @@
 // Service worker: guarda la app en el teléfono para que abra sin conexión.
-const CACHE = "mis-costos-v2";
+const CACHE = "mis-costos-v3";
 const ASSETS = [
   "./", "index.html", "manifest.webmanifest", "css/styles.css",
   "js/app.js", "js/db.js", "js/ocr.js", "js/ocr-free.js", "js/scanner.js", "js/products.js", "js/stats.js",

@@ -421,7 +421,8 @@ function renderReview() {
           <input data-f="lineTotal" inputmode="decimal" value="${i.lineTotal || ""}" aria-label="Importe" placeholder="Importe" />
           <span class="small muted num">${i.quantity && i.lineTotal ? money2(i.lineTotal / i.quantity) + " c/u" : ""}</span>
           <button class="x" data-del aria-label="Quitar">✕</button>
-          ${i.ean ? `<div class="status"><span class="badge ok">✓ ${esc(state.products[i.ean]?.name || i.ean)}${i.auto ? " · reconocido" : ""}</span></div>` : ""}
+          ${!i.lineTotal ? `<div class="status"><span class="badge warn">Falta el importe: miralo en el ticket</span></div>` : ""}
+          ${i.ean ? `<div class="status"><span class="badge ok">✓ ${state.products[i.ean]?.name ? esc(state.products[i.ean].name) : "código " + i.ean}${i.auto ? " · reconocido" : ""}</span></div>` : ""}
         </div>`).join("")}</div>
       <button class="btn-sm" id="add-item" style="margin-top:8px">+ Agregar línea</button>
       ${d.rawText ? `<details style="margin-top:10px"><summary>Ver el texto que se leyó de la foto</summary><pre class="small" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(d.rawText)}</pre></details>` : ""}
@@ -774,7 +775,7 @@ function renderAjustes() {
       <input type="file" id="import" accept="application/json" class="hidden" />
       <button class="btn-block btn-danger" id="wipe">Borrar todos los datos</button>
     </div>
-    <p class="small muted" style="text-align:center">Mis Costos v0.2 · Los nombres de productos vienen de Open Food Facts</p>`;
+    <p class="small muted" style="text-align:center">Mis Costos v0.3 · Los nombres de productos vienen de Open Food Facts</p>`;
 
   $("#save-key").onclick = () => {
     setApiKey($("#key").value);
