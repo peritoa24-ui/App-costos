@@ -28,4 +28,7 @@ for (const v of ["lstm", "simd-lstm", "relaxedsimd-lstm"]) {
   copyFileSync(`node_modules/tesseract.js-core/tesseract-core-${v}.wasm.js`, `vendor/tesseract/core/tesseract-core-${v}.wasm.js`);
 }
 copyFileSync("node_modules/@tesseract.js-data/spa/4.0.0_best_int/spa.traineddata.gz", "vendor/tesseract/lang/spa.traineddata.gz");
+// Tipografía Outfit (incluida en la app para que funcione sin internet)
+mkdirSync("vendor/fonts", { recursive: true });
+copyFileSync("node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2", "vendor/fonts/outfit-latin.woff2");
 console.log("vendor listo");

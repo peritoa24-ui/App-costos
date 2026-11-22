@@ -115,8 +115,8 @@ function renderDashboard() {
   if (!tickets.length) {
     view.innerHTML = `
       <div class="card empty">
-        <div class="big">🧾</div>
-        <p><strong>Todavía no cargaste tickets.</strong></p>
+        <div class="big"><svg viewBox="0 0 24 24"><path d="M5 3h14v18l-2.3-1.6L14.3 21 12 19.4 9.7 21l-2.4-1.6L5 21z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></div>
+        <p><strong>Todavía no cargaste tickets</strong></p>
         <p>Sacale una foto a tu primer ticket del súper y validalo escaneando los productos.</p>
         <button class="btn-primary btn-block" id="go-ticket">Cargar mi primer ticket</button>
       </div>`;
@@ -141,7 +141,7 @@ function renderDashboard() {
 
   view.innerHTML = `
     <div class="tiles">
-      <div class="tile"><div class="label">Gastado este mes</div><div class="value">${money(thisMonth)}</div>
+      <div class="tile hero"><div class="label">Gastado este mes</div><div class="value">${money(thisMonth)}</div>
         <div class="sub">${((n) => n + (n === 1 ? " ticket" : " tickets"))(tickets.filter((t) => monthKey(t.date) === cur).length)}</div></div>
       <div class="tile"><div class="label">Mes anterior</div><div class="value">${money(prev?.total)}</div>
         <div class="sub">${prev ? monthLabel(prev.month) : "sin datos"}</div></div>
@@ -221,6 +221,7 @@ function drawCharts(months, proj, cats) {
   const grid = cssVar("--grid");
   const series = cssVar("--series-1");
   Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.borderColor = grid;
   Chart.defaults.color = ink;
   const tooltip = { callbacks: { label: (ctx) => " " + money(ctx.parsed.y ?? ctx.parsed.x) } };
 
@@ -798,7 +799,7 @@ function renderAjustes() {
       <input type="file" id="import" accept="application/json" class="hidden" />
       <button class="btn-block btn-danger" id="wipe">Borrar todos los datos</button>
     </div>
-    <p class="small muted" style="text-align:center">Mis Costos v0.4 · Los nombres de productos vienen de Open Food Facts</p>`;
+    <p class="small muted" style="text-align:center">Mis Costos v0.5 · Los nombres de productos vienen de Open Food Facts</p>`;
 
   $("#save-key").onclick = () => {
     setApiKey($("#key").value);
