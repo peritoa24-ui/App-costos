@@ -19,4 +19,13 @@ await build({
 
 copyFileSync("node_modules/zxing-wasm/dist/reader/zxing_reader.wasm", "vendor/zxing_reader.wasm");
 copyFileSync("node_modules/chart.js/dist/chart.umd.js", "vendor/chart.umd.js");
+// Lector de texto gratuito (Tesseract), funciona en el teléfono sin internet
+mkdirSync("vendor/tesseract/core", { recursive: true });
+mkdirSync("vendor/tesseract/lang", { recursive: true });
+copyFileSync("node_modules/tesseract.js/dist/tesseract.esm.min.js", "vendor/tesseract/tesseract.esm.min.js");
+copyFileSync("node_modules/tesseract.js/dist/worker.min.js", "vendor/tesseract/worker.min.js");
+for (const v of ["lstm", "simd-lstm", "relaxedsimd-lstm"]) {
+  copyFileSync(`node_modules/tesseract.js-core/tesseract-core-${v}.wasm.js`, `vendor/tesseract/core/tesseract-core-${v}.wasm.js`);
+}
+copyFileSync("node_modules/@tesseract.js-data/spa/4.0.0_best_int/spa.traineddata.gz", "vendor/tesseract/lang/spa.traineddata.gz");
 console.log("vendor listo");

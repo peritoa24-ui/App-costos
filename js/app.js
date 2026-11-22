@@ -1,5 +1,14 @@
 import { db, uid, exportAll, importAll } from "./db.js";
 import { readTicket, getApiKey, setApiKey } from "./ocr.js";
+import { readTicketFree } from "./ocr-free.js";
+
+// Método de lectura: "free" (gratis, en el teléfono) o "ai" (Claude, requiere API key)
+function getOcrMode() {
+  let m = "free";
+  try { m = localStorage.getItem("ocr_mode") || "free"; } catch {}
+  return m === "ai" && getApiKey() ? "ai" : "free";
+}
+function setOcrMode(m) { try { localStorage.setItem("ocr_mode", m); } catch {} }
 import { startScanner, isValidEan } from "./scanner.js";
 import {
   CATEGORIES, getOrCreateProduct, rankItems, addPrice, addAlias, latestPrice, normalize,
@@ -273,6 +282,7 @@ function newDraft(data = {}) {
     store: data.store || "",
     total: data.total || 0,
     items: (data.items || []).map((i) => ({ ...i, id: uid(), ean: i.ean && isValidEan(i.ean) ? i.ean : null, auto: false })),
+    rawText: data.rawText || "",
     extras: [], // productos escaneados que no figuran en el ticket
     step: "review",
   };
@@ -297,7 +307,7 @@ function renderTicket() {
 }
 
 function renderTicketHome() {
-  const hasKey = !!getApiKey();
+  const mode = getOcrMode();
   view.innerHTML = `
     <div class="card stack">
       <h2>Nuevo ticket</h2>
@@ -306,7 +316,7 @@ function renderTicketHome() {
       <label class="btn btn-block" for="photo-gal">🖼️ Elegir foto de la galería</label>
       <input id="photo-gal" type="file" accept="image/*" class="hidden" />
       <button class="btn-block" id="manual">✍️ Cargar a mano</button>
-      ${hasKey ? "" : `<p class="small muted">Para leer el ticket automáticamente cargá tu API key en <a href="#" id="to-settings">Ajustes</a>. Mientras tanto podés cargarlo a mano.</p>`}
+      <p class="small muted">${mode === "ai" ? "Lectura con IA (Claude)." : "Lectura gratis en el teléfono."} Sacá la foto con buena luz, con el ticket estirado y derecho, que se vea entero. Después vas a poder corregir lo que haga falta. <a href="#" id="to-settings">Cambiar método</a></p>
       <div id="ocr-status"></div>
     </div>
     <div class="card">
@@ -322,15 +332,18 @@ function renderTicketHome() {
   const onFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!getApiKey()) { toast("Primero cargá la API key en Ajustes"); return; }
     const status = $("#ocr-status");
-    status.innerHTML = `<p><span class="spinner"></span> Leyendo el ticket… (puede tardar unos segundos)</p>`;
+    const setStatus = (msg) => (status.innerHTML = `<p><span class="spinner"></span> ${esc(msg)}</p>`);
+    setStatus("Leyendo el ticket… (puede tardar unos segundos)");
     view.querySelectorAll("button, label.btn").forEach((b) => (b.style.pointerEvents = "none"));
     try {
-      const data = await readTicket(file);
+      const data = getOcrMode() === "ai" ? await readTicket(file) : await readTicketFree(file, setStatus);
       state.draft = newDraft(data);
       autoMatchDraft(state.draft);
-      if (!state.draft.items.length) toast("No encontré productos en la foto. Podés agregarlos a mano.");
+      if (!state.draft.items.length) {
+        state.draft.items.push({ id: uid(), description: "", quantity: 1, unitPrice: 0, lineTotal: 0, ean: null });
+        toast("No pude reconocer productos en la foto. Cargalos a mano o probá otra foto.", 4500);
+      }
       renderTicket();
     } catch (err) {
       status.innerHTML = `<p class="up">${esc(err.message || err)}</p>`;
@@ -411,6 +424,7 @@ function renderReview() {
           ${i.ean ? `<div class="status"><span class="badge ok">✓ ${esc(state.products[i.ean]?.name || i.ean)}${i.auto ? " · reconocido" : ""}</span></div>` : ""}
         </div>`).join("")}</div>
       <button class="btn-sm" id="add-item" style="margin-top:8px">+ Agregar línea</button>
+      ${d.rawText ? `<details style="margin-top:10px"><summary>Ver el texto que se leyó de la foto</summary><pre class="small" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(d.rawText)}</pre></details>` : ""}
       <p class="small ${Math.abs(diff) > 1 ? "up" : "muted"}" id="sum-line">Suma de líneas: ${money2(sum)}${Math.abs(diff) > 1 ? ` · diferencia con el total: ${money2(diff)}` : d.total ? " ✓ coincide con el total" : ""}</p>
     </div>
     <div class="stack">
@@ -738,8 +752,15 @@ function renderAjustes() {
   const key = getApiKey();
   view.innerHTML = `
     <div class="card">
-      <h2>Lectura automática de tickets</h2>
-      <p class="small muted">La app usa la IA de Claude para leer la foto del ticket. Necesitás una API key de Anthropic (se crea en console.anthropic.com). Cada ticket cuesta unos pocos centavos de dólar. La clave queda guardada <strong>solo en este teléfono</strong>.</p>
+      <h2>Cómo leer los tickets</h2>
+      <label class="row" style="margin-bottom:10px;align-items:flex-start"><input type="radio" name="mode" value="free" style="width:auto;margin-top:4px" ${getOcrMode() === "free" ? "checked" : ""} />
+        <span><strong>Gratis, en el teléfono</strong><br><span class="small muted">Funciona sin internet y sin costo. Es menos preciso: revisá y corregí los productos después de leer.</span></span></label>
+      <label class="row" style="align-items:flex-start"><input type="radio" name="mode" value="ai" style="width:auto;margin-top:4px" ${getOcrMode() === "ai" ? "checked" : ""} ${key ? "" : "disabled"} />
+        <span><strong>Con IA (Claude)</strong><br><span class="small muted">Mucho más precisa. Requiere una API key de Anthropic con crédito (unos centavos de dólar por ticket).${key ? "" : " Cargá la clave abajo para activarla."}</span></span></label>
+    </div>
+    <div class="card">
+      <h2>API key (opcional)</h2>
+      <p class="small muted">Solo para la lectura con IA. Se crea en console.anthropic.com y queda guardada <strong>solo en este teléfono</strong>.</p>
       <label class="field"><span>API key</span><input id="key" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(key)}" /></label>
       <button class="btn-primary" id="save-key">Guardar clave</button>
       ${key ? `<span class="badge ok" style="margin-left:8px">configurada</span>` : ""}
@@ -753,9 +774,15 @@ function renderAjustes() {
       <input type="file" id="import" accept="application/json" class="hidden" />
       <button class="btn-block btn-danger" id="wipe">Borrar todos los datos</button>
     </div>
-    <p class="small muted" style="text-align:center">Mis Costos v0.1 · Los nombres de productos vienen de Open Food Facts</p>`;
+    <p class="small muted" style="text-align:center">Mis Costos v0.2 · Los nombres de productos vienen de Open Food Facts</p>`;
 
-  $("#save-key").onclick = () => { setApiKey($("#key").value); toast("Clave guardada"); renderAjustes(); };
+  $("#save-key").onclick = () => {
+    setApiKey($("#key").value);
+    if (getApiKey()) setOcrMode("ai");
+    toast(getApiKey() ? "Clave guardada · lectura con IA activada" : "Clave borrada");
+    renderAjustes();
+  };
+  view.querySelectorAll('input[name="mode"]').forEach((r) => (r.onchange = () => { setOcrMode(r.value); toast(r.value === "ai" ? "Lectura con IA" : "Lectura gratis"); }));
   $("#export").onclick = async () => {
     const data = await exportAll();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });

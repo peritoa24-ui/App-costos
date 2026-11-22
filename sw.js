@@ -1,9 +1,10 @@
 // Service worker: guarda la app en el teléfono para que abra sin conexión.
-const CACHE = "mis-costos-v1";
+const CACHE = "mis-costos-v2";
 const ASSETS = [
   "./", "index.html", "manifest.webmanifest", "css/styles.css",
-  "js/app.js", "js/db.js", "js/ocr.js", "js/scanner.js", "js/products.js", "js/stats.js",
+  "js/app.js", "js/db.js", "js/ocr.js", "js/ocr-free.js", "js/scanner.js", "js/products.js", "js/stats.js",
   "vendor/anthropic.js", "vendor/barcode-detector.js", "vendor/zxing_reader.wasm", "vendor/chart.umd.js",
+  "vendor/tesseract/tesseract.esm.min.js", "vendor/tesseract/worker.min.js", "vendor/tesseract/lang/spa.traineddata.gz",
   "icons/icon-192.png", "icons/icon-512.png",
 ];
 
